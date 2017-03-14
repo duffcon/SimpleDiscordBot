@@ -1,57 +1,30 @@
-# Dependencies
+# Birth
 
-Installing and setting up nodejs
+How to create your bot and then connect it to a discord server.
 
 ---
+Create an app on the discord website:
+https://discordapp.com/developers/applications/me
+<img src="img/myapps.png" width="50%">
 
-Install latest version.
-```bash
-sudo apt-get update
-sudo apt-get upgrade
-```
+Give your app a name and picture then turn it into a bot.
 
-```bash
-curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-Check version installed.
-```bash
-npm -v
-node -v
-```
-mine were 4.1.2 and 7.7.2.
+<img src="img/create.png" width="49%"> <img src="img/clickcreate.png" width="45%">
 
-Initialize project. Follow steps to create a package.json file.
+We are interested in two numbers: Cliend ID and Token.
+Client ID will be used to add the bot to your server. Token will be used to login from our javascript program.
 
-```bash
-npm init
-```
+<img src="img/idandtoken.png" width="60%">
 
-Install local copy of packages in node_modules folder. Ignore "UNMET PEER DEPENDENCY".
+First create a test server.
 
-```bash
-npm install --save discord.js
-npm install --save discord.js-commando
-npm install --save pg
-```
+<img src="img/createserver1.png" width="20%"> <img src="img/createserver2.png" width="40%">
+
+Copy and paste the client ID into the lower left-hand box, specify permissions, then cick invite link at the bottom. Authorize the bot to connect to your test server.
+
+https://discordapi.com/permissions.html
 
 
+<img src="img/calc.png" width="59%"> <img src="img/authorize.png" width="28%">
 
-discord.js-commando is an extension of discord.js with more command capabilities. This is what we will use to communicate with our discord server. pg will be used to communicate with our database.
-
-create index.js file and add the following line:
-
-```javascript
-console.log("Hello World");
-```
-
-Go to project folder and type:
-
-```bash
-node .
-```
-
-If you see "Hello World" you are all set.
-
-### References
-https://nodejs.org/en/download/package-manager/
+Your bot should now be connected to your discord server, congratulations.
