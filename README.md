@@ -1,30 +1,35 @@
-# Birth
+# First Words
 
-How to create your bot and then connect it to a discord server.
+Getting your bot to speak. Will respond to "hello" with "world".
 
 ---
-Create an app on the discord website:
-https://discordapp.com/developers/applications/me
-<img src="img/myapps.png" width="50%">
 
-Give your app a name and picture then turn it into a bot.
+We will now be using the packages we downloaded earlier. Clear out your index.js file then add:
+```javascript
+const commando = require('discord.js-commando');
+const bot = new commando.Client();
 
-<img src="img/create.png" width="49%"> <img src="img/clickcreate.png" width="45%">
+//Token from discord website
+bot.login('MjkxMTA5NjgyNjA3ODE2NzA2.C6ksrw.WpEcreIwJcaI5dMdk5_KPVRu59k');
 
-We are interested in two numbers: Cliend ID and Token.
-Client ID will be used to add the bot to your server. Token will be used to login from our javascript program.
+bot.on("message", (message) => {
+    if(message.content.startsWith("hello")){
+        message.channel.sendMessage("world");
+    }
+});
+```
 
-<img src="img/idandtoken.png" width="60%">
+Go to terminal and type:
 
-First create a test server.
+```bash
+node .
+```
 
-<img src="img/createserver1.png" width="20%"> <img src="img/createserver2.png" width="40%">
+Go to your discord server and type "hello".
 
-Copy and paste the client ID into the lower left-hand box, specify permissions, then cick invite link at the bottom. Authorize the bot to connect to your test server.
-
-https://discordapi.com/permissions.html
+Your bot should say "world". They grow up so fast.
 
 
-<img src="img/calc.png" width="59%"> <img src="img/authorize.png" width="28%">
-
-Your bot should now be connected to your discord server, congratulations.
+## References
+https://discord.js.org/#/docs/main/stable/class/Client
+https://discord.js.org/#/docs/main/stable/class/Message
