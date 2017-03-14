@@ -32,4 +32,5 @@ Your bot should say "world". They grow up so fast.
 
 ## References
 https://discord.js.org/#/docs/main/stable/class/Client
+
 https://discord.js.org/#/docs/main/stable/class/Message
