@@ -1,109 +1,168 @@
-# Obedience
+# Postgres + Javascript
 
-Your bot can speak, but does it listen? This is how to command your bot.
+In the last section we interacted with the database with the command line, how do we do that with javascript?
 
 ---
 
-This is where discord.js-commando will be more helpful than simply using discord.js. Rather than cluttering our index.js file with various commands, we can organize them one file at a time.
+## Client
 
-We are going to store commands in a command folder, so make one.
-```bash
-mkdir commands
-```
-
-For better organization we can group the commands into folders. So in this example we will have math commands in the math folder.
-
-```bash
-mkdir commands/math
-```
-Slightly different from the previous section is that we have specified the prefix these commands will use. I decided to use '!'.
+Create a new client named 'db' by passing in an object.
 
 ```javascript
-const commando = require('discord.js-commando');
+var pg = require('pg');
 
-const bot = new commando.Client({
-    commandPrefix: '!'
+var db = new pg.Client({
+  user: 'postgres',
+  password: 'admin',
+  database: 'postgres',
+  host: 'localhost',
+  port: 5432
+});
+```
+Or a connection string.
+
+```javascript
+var pg = require('pg');
+
+//var connectionString = 'postgres://user:password@host:port/database';
+var connectionString = 'postgres://postgres:admin@localhost:5432/postgres';
+var db = new pg.Client(connectionString)
+```
+
+## Connect
+
+Simplest.
+
+```javascript
+db.connect();
+```
+Provide callback function.
+
+```javascript
+db.connect( ()=> {
+    console.log('I have connected');
+});
+```
+Handle errors.
+
+```javascript
+db.connect((err)=> {
+    if (err){throw err}
+    console.log('I have connected');
 });
 ```
 
+## Query
 
-In the commands/math folder create pi.js. This will be a simple command that will send the value of pi.
+No callback function.
 
 ```javascript
-const commando = require('discord.js-commando');
-
-module.exports = class TestCommand extends commando.Command {
-
-    constructor(client){
-        super(client, {
-            name:'pi',
-            group: 'math',
-            memberName:'picommand',
-            description:'returns pi'
-        });
-    }
-
-    async run(message){
-        message.reply("3.14159265359");
-
-    }
-}
+db.query('select * from users');
 ```
 
-back in index.js we will register the commands.
+Callback function includes a result object which contains command, rowcount, rows, etc.
+
 ```javascript
-bot.registry.registerGroup('math', 'math');
-bot.registry.registerDefaults();
-bot.registry.registerCommandsIn(__dirname + '/commands')
+db.query('select * from users', (err, result) => {
+    console.log(result);
+});
 ```
 
-Run your bot with:
+result.rows is an array of everything returned by the query.
 
-```bash
-node .
-```
-
-If you go to your discord server and type "!pi" your bot should tell you the value of pi.
-
-A more complicated command will be in add.js which will take arguments and tell you the sum of the values.
 ```javascript
-const commando = require('discord.js-commando');
-
-module.exports = class TestCommand extends commando.Command {
-
-    constructor(client){
-        super(client, {
-            name:'add',
-            group: 'math',
-            memberName:'addcommand',
-            description:'returns sum of the arguments.\tExample: !add 1 2.6 5',
-      			args: [{
-        				key: 'add_key',
-        				label: 'number',
-        				prompt: 'Enter numbers to add together:\n',
-        				type: 'float',
-        				infinite: true
-        			}]
-        });
-    }
-
-    async run(message, args){
-        var sum = 0;
-        var equation = args.add_key.join(' + ');
-        console.log(equation);
-        for (var num of args.add_key){
-            sum += num;
-        }
-        message.reply(equation + " = " + sum);
-
-    }
-}
+db.query('select * from users', (err, result) => {
+    if(err) {throw err}
+    console.log(result.rowCount + ' rows were returned\n');
+    console.log(result.rows);
+});
 ```
-If you type "!add 1 2 3 4" your bot should respond with the "10".
 
-Sending "!help" will direct message you all the commands that the bot will listen to.
+---
+
+Instead of using a callback function we will use the QUERY object returned by the db.query function. This object has two main events: row and end. Row occurs once for every row that is returned. End occurs when all rows have been returned.
+
+```javascript
+var myquery = db.query('select * from users');
+
+myquery.on('row', (row, result) => {
+    console.log('id: ' + row.id);
+    result.addRow(row);
+});
+
+myquery.on('end', (result) => {
+    console.log('all done mate');
+});
+```
+You can also include an error event if you desire.
+
+```javascript
+
+myquery.on('error', () => {
+    console.log('there was error');
+})
+```
+
+---
+
+If your queries will vary slightly you can parameterize them.
+
+```javascript
+db.query({
+  text: 'SELECT * FROM users where id = $1',
+  values: ['3']
+}, (err, result) => {
+  console.log('count: ' + result.rows[0].count)
+});
+```
+
+```javascript
+var ids = ['2', '3'];
+
+db.query({
+  text: 'SELECT * FROM users where id = $1 or id = $2',
+  values: ids
+}, function(err, result) {
+    if(err){throw err}
+    console.log(result.rows)
+});
+```
+
+Type conversion.
+
+```javascript
+db.query('select * from users where id = 2::text', (err, result) => {
+    console.log(result.rows);
+});
+```
+
+Spans multiple lines.
+
+```javascript
+db.query('select * \
+          from users \
+          order by count desc',
+    (err, result) => {
+        console.log(result.rows);
+});
+```
+
+## Disconnect
+
+You can immeditely terminate the connection.
+
+```javascript
+db.end();
+```
+
+Or end the connection once all the query have completed.
+
+```javascript
+db.on('drain', db.end.bind(db));
+```
 
 
 ## References
+https://github.com/brianc/node-postgres/wiki/Client
 
-https://discord.js.org/#/docs/commando/master/class/Command?scrollTo=run
+https://www.tutorialspoint.com/sql/sql-order-by.htm
