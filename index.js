@@ -1,47 +1,75 @@
-var pg = require('pg');
 
-//var connectionString = 'postgres://user:password@host:port/database';
-var connectionString = 'postgres://postgres:admin@localhost:5432/postgres';
-var db = new pg.Client(connectionString)
+const commando = require('discord.js-commando');
+var pool = require ('./clientpool.js');
 
+prefix = '!'
 
-
-//Disconnect after all queries
-db.on('drain', db.end.bind(db));
-
-db.connect(()=>{
-    console.log('connected to database');
+//Connect to discord server
+const bot = new commando.Client({
+    commandPrefix: prefix,
+    owner:['216778987299536896']
 });
 
-//Create Table
-db.query('create table if not exists users( \
-    id text primary key, \
-    count integer default 0)');
+//Register Commands
+bot.registry.registerGroup('count', 'count');
+bot.registry.registerGroup('math', 'math');
+bot.registry.registerDefaults();
+bot.registry.registerCommandsIn(__dirname + '/commands')
+bot.login('MjkxMTA5NjgyNjA3ODE2NzA2.C6ksrw.WpEcreIwJcaI5dMdk5_KPVRu59k');
 
-//Insert users into database
-db.query("insert into users (id, count) \
-          values ('1', 0), ('2', 15), ('3', 12), ('4', 2)");
 
-//Table before update
-db.query('select * from users order by count desc', (err, result) => {
-    if(err){throw err}
-    console.log(result.rows);
+
+//Bot loads up
+bot.on('ready', () => {
+    console.log('The bot is ready to go');
+    pool.connect( (err, client, done) => {
+            client.query('create table if not exists users( \
+                id text primary key, \
+                name text, \
+                count integer default 0)', (err, result) => {
+                    //disconnent from database on error
+                    done(err);
+            });
+    });
 });
 
-//Update
-db.query('update users set count = 3 where id > 1::text', (err, result) => {
-    if(err){throw err}
-    console.log(result.command + ' ' + result.rowCount);
+//When a message is sent
+bot.on('message', (message) => {
+    //Not send by a bot and not a command
+    if(message.author.bot == false && (message.content.startsWith(prefix) == false) ){
+        //Connected to database
+        pool.connect( (err, client, done) => {
+            //Increment users count by 1
+            client.query('update users set count = count + 1 where id = $1',
+            [message.author.id], (err, result) => {
+
+                done(err);
+                //If user not in the database add them
+                if (result.rowCount == 0){
+                    client.query('insert into users (id, name, count) values ($1, $2, 1)',
+                    [message.author.id, message.author.username], (err, result) => {
+                        done(err);
+                        console.log(result.rowCount);
+                    });
+                }
+            });
+        });
+    }
 });
 
-//Table after update
-db.query('select * from users order by count desc', (err, result) => {
-    if(err){throw err}
-    console.log(result.rows);
-});
+//User changes nickname
+bot.on('guildMemberUpdate', (oldguy, newguy) => {
+    pool.connect( (err, client, done) => {
+        //Update display name to new nickname
+        client.query('update users set name = $1 where id = $2',
+        [newguy.displayName, newguy.user.id], (err, result) => {
+            done(err);
 
-//drop table
-db.query('drop table if exists users', (err, result) => {
-    if(err){throw err}
-    console.log(result.command);
+        });
+    });
+
+
+
+
+
 });

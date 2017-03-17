@@ -21,7 +21,6 @@ module.exports = class TestCommand extends commando.Command {
     async run(message, args){
         var sum = 0;
         var equation = args.add_key.join(' + ');
-        console.log(equation);
         for (var num of args.add_key){
             sum += num;
         }

@@ -1,168 +1,134 @@
-# Postgres + Javascript
+# Alpha
 
-In the last section we interacted with the database with the command line, how do we do that with javascript?
+Decided this was a good enough for an alpha.
 
 ---
 
-## Client
+## Client Pooling
 
-Create a new client named 'db' by passing in an object.
+A database connection will be shared among many files so one solution is to use a pool of clients rather than a single one.
+A pool of clients will be placed in a separate file and exported using module.exports.
 
 ```javascript
+//clientpool.js
 var pg = require('pg');
 
-var db = new pg.Client({
+var config = {
   user: 'postgres',
-  password: 'admin',
   database: 'postgres',
+  password: 'admin',
   host: 'localhost',
-  port: 5432
-});
-```
-Or a connection string.
+  port: 5432,
+  max: 10,
+  idleTimeoutMillis: 50000,
+};
 
-```javascript
-var pg = require('pg');
-
-//var connectionString = 'postgres://user:password@host:port/database';
-var connectionString = 'postgres://postgres:admin@localhost:5432/postgres';
-var db = new pg.Client(connectionString)
+var pool = new pg.Pool(config);
+module.exports = pool;
 ```
 
-## Connect
-
-Simplest.
+In a file that needs a connection you can simply require the file
 
 ```javascript
-db.connect();
+var pool = require ('./clientpool.js');
 ```
-Provide callback function.
+
+An unused client can be acquired with the following code:
 
 ```javascript
-db.connect( ()=> {
-    console.log('I have connected');
-});
-```
-Handle errors.
+pool.connect( (err, client, done) => {
+    //database interaction goes here
+    //client.query('...')
 
-```javascript
-db.connect((err)=> {
-    if (err){throw err}
-    console.log('I have connected');
+    //disconnent from database on error
+    done(err);
 });
 ```
 
-## Query
+## Message Event
 
-No callback function.
+The most complex piece of code is when the bot receives a message. If you understand this you will be able to understand the rest.
 
-```javascript
-db.query('select * from users');
-```
-
-Callback function includes a result object which contains command, rowcount, rows, etc.
+Nothing happens yet.
 
 ```javascript
-db.query('select * from users', (err, result) => {
-    console.log(result);
+bot.on('message', (message) => {
+
+
 });
 ```
 
-result.rows is an array of everything returned by the query.
+Only want to store information for real users and not bots. Personal decision to not include commands in message count.
 
 ```javascript
-db.query('select * from users', (err, result) => {
-    if(err) {throw err}
-    console.log(result.rowCount + ' rows were returned\n');
-    console.log(result.rows);
+bot.on('message', (message) => {
+    //Not send by a bot and not a command
+    if(message.author.bot == false && (message.content.startsWith(prefix) == false) ){
+
+
+    }
+});
+```
+Paste the client allocation code from above inside the if statement.
+
+
+```javascript
+bot.on('message', (message) => {
+    //Not send by a bot and not a command
+    if(message.author.bot == false && (message.content.startsWith(prefix) == false) ){
+        //Connected to database
+        pool.connect( (err, client, done) => {
+
+
+        });
+    }
 });
 ```
 
----
-
-Instead of using a callback function we will use the QUERY object returned by the db.query function. This object has two main events: row and end. Row occurs once for every row that is returned. End occurs when all rows have been returned.
+We now have a connection to the database so we can query it. Someone sent a message so their count will be incremented by 1.
 
 ```javascript
-var myquery = db.query('select * from users');
+bot.on('message', (message) => {
+    //Not send by a bot and not a command
+    if(message.author.bot == false && (message.content.startsWith(prefix) == false) ){
+        //Connected to database
+        pool.connect( (err, client, done) => {
+            //Increment users count by 1
+            client.query('update users set count = count + 1 where id = $1',
+            [message.author.id], (err, result) => {
+                done(err);
 
-myquery.on('row', (row, result) => {
-    console.log('id: ' + row.id);
-    result.addRow(row);
-});
 
-myquery.on('end', (result) => {
-    console.log('all done mate');
-});
-```
-You can also include an error event if you desire.
-
-```javascript
-
-myquery.on('error', () => {
-    console.log('there was error');
-})
-```
-
----
-
-If your queries will vary slightly you can parameterize them.
-
-```javascript
-db.query({
-  text: 'SELECT * FROM users where id = $1',
-  values: ['3']
-}, (err, result) => {
-  console.log('count: ' + result.rows[0].count)
+            });
+        });
+    }
 });
 ```
 
-```javascript
-var ids = ['2', '3'];
+Well what if the user is not the in database? If they are not the query will return update 0. We will check for that to know if the user needs to be added. The user will be added with a count of 1 instead of the default 0.
 
-db.query({
-  text: 'SELECT * FROM users where id = $1 or id = $2',
-  values: ids
-}, function(err, result) {
-    if(err){throw err}
-    console.log(result.rows)
+```javascript
+bot.on('message', (message) => {
+    //Not send by a bot and not a command
+    if(message.author.bot == false && (message.content.startsWith(prefix) == false) ){
+        //Connected to database
+        pool.connect( (err, client, done) => {
+            //Increment users count by 1
+            client.query('update users set count = count + 1 where id = $1',
+            [message.author.id], (err, result) => {
+                done(err);
+                //If user not in the database add them
+                if (result.rowCount == 0){
+                    client.query('insert into users (id, name, count) values ($1, $2, 1)',
+                    [message.author.id, message.author.username], (err, result) => {
+                        done(err);
+                    });
+                }
+            });
+        });
+    }
 });
 ```
 
-Type conversion.
 
-```javascript
-db.query('select * from users where id = 2::text', (err, result) => {
-    console.log(result.rows);
-});
-```
-
-Spans multiple lines.
-
-```javascript
-db.query('select * \
-          from users \
-          order by count desc',
-    (err, result) => {
-        console.log(result.rows);
-});
-```
-
-## Disconnect
-
-You can immeditely terminate the connection.
-
-```javascript
-db.end();
-```
-
-Or end the connection once all the query have completed.
-
-```javascript
-db.on('drain', db.end.bind(db));
-```
-
-
-## References
-https://github.com/brianc/node-postgres/wiki/Client
-
-https://www.tutorialspoint.com/sql/sql-order-by.htm
+The rest of the code follows the same format. You should be able to understand the rest.
