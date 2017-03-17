@@ -7,7 +7,7 @@ prefix = '!'
 //Connect to discord server
 const bot = new commando.Client({
     commandPrefix: prefix,
-    owner:['216778987299536896']
+    owner:['YourID']
 });
 
 //Register Commands
